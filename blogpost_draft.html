@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Henry Oliver">
+
+<title>Fish Species Richness In US Northwest</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="blogpost_draft_files/libs/clipboard/clipboard.min.js"></script>
+<script src="blogpost_draft_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="blogpost_draft_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="blogpost_draft_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="blogpost_draft_files/libs/quarto-html/popper.min.js"></script>
+<script src="blogpost_draft_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="blogpost_draft_files/libs/quarto-html/anchor.min.js"></script>
+<link href="blogpost_draft_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="blogpost_draft_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="blogpost_draft_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="blogpost_draft_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="blogpost_draft_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Fish Species Richness In US Northwest</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Henry Oliver </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dagitty)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggdag)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="background" class="level2">
+<h2 class="anchored" data-anchor-id="background">Background</h2>
+<p>Freshwater fish presence and species richness is a vital metric for stream health. Stream health is very important to the economies for Montana, Wyoming, Idaho and the Dakotas. As global heating trends cause decreases in snowfall and increases in air temperature, these streams are at risk, and so are the fish that swim in them. In order to protect stream life, it’s important that we research the relationships between biotic factors and their environment.</p>
+</section>
+<section id="question" class="level2">
+<h2 class="anchored" data-anchor-id="question">Question</h2>
+<p>How is freshwater fish diversity affected by precipitation in Northwest rivers and streams?</p>
+</section>
+<section id="data" class="level2">
+<h2 class="anchored" data-anchor-id="data">Data</h2>
+<p>The University of Wyoming Stream Species Dataset is a species presence dataset containing presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states. It contains data from 40,490 unique sample events (location, month, year). Data was derived from multiple sources (Table 1) and limited to fish occurrences in rivers and streams. This dataset was compiled by combining data from agency databases, the Global Biodiversity Information Facility, university theses, peer-reviewed literature, grey-literature reports, and unpublished data from the University of Wyoming. Please note that absence (0) values only indicate that a species was not recorded by observers and should not be used as true absences in analyses.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Map of shapefile showing all rivers</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<p>I’ll be modeling the relationship between precipitation and fish species richness using a negative binomial model.</p>
+</section>
+<section id="variable-and-dag" class="level2">
+<h2 class="anchored" data-anchor-id="variable-and-dag">Variable and DAG</h2>
+<p>Precipitation: Mm precipitation recorded during the month of observation</p>
+<p>Base Flow Index (BFI): Expression of groundwater vs.&nbsp;surface water flow in for each water body</p>
+<p>Air Temperature: Average air temperature during the month of August for each river. NOT For each year. These temperatures are a regional average over many years.</p>
+<p>Flow: Many-year average flow rate during the month of August for each river.</p>
+<p>Richness: Number of species observed in a given stream</p>
+</section>
+<section id="dag" class="level2">
+<h2 class="anchored" data-anchor-id="dag">Dag</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>dag <span class="ot">&lt;-</span> <span class="fu">dagitty</span>(<span class="st">'</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="st">dag {</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="st">  "Precipitation" -&gt; "BFI"</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="st">  "Air Temp" -&gt; "BFI"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="st">  "Air Temp" -&gt; "Precipitation"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="st">  "Flow" -&gt; "BFI"</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="st">  "Precipitation" -&gt; "Richness"</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="st">  "BFI" -&gt; "Richness"</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="st">  "Flow" -&gt; "Richness"</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="st">  "Air Temp" -&gt; "Richness"</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="st">}</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="st">'</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot Dag</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ggdag</span>(dag) <span class="sc">+</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_dag_point</span>( <span class="at">color =</span> <span class="st">"darkgrey"</span>) <span class="sc">+</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_dag_text</span>(<span class="at">color =</span> <span class="st">"black"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="blogpost_draft_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>(((Descriptio of DAG)))</p>
+</section>
+<section id="reading-in-our-fish-data" class="level2">
+<h2 class="anchored" data-anchor-id="reading-in-our-fish-data">Reading in our fish data</h2>
+<p>This data set has over 40,000 entries of varying quality dating back to 1800. So we’ll want to filter some of that information out. For this analysis, I’ll just be looking at the last available century of data. My <code>select()</code> function below removes some of the columns that are not necessary for this analysis</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>fish_raw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">here</span>(<span class="st">"data"</span>,<span class="st">"StreamSpeciesDataset_v1_1_3_edited.csv"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(year <span class="sc">&gt;=</span> <span class="dv">1972</span>, year <span class="sc">&lt;=</span> <span class="dv">2022</span>) <span class="sc">%&gt;%</span> <span class="co"># 50 Years of data</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(month <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"8"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Right now, our data table has one column for each species of fish, with a value of 1 or 0 indicating presence or non-presence. For analysis like these, ‘long’ formatted data is better. So we’re going to pivot our columns for each species into two columns, one for ‘species’ and one for ‘presence’.</p>
+<p>(((Note for Henry: Turn this into a list so you can hide all the species names)))</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pivot longer so that each species has it's own row</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>fish_long <span class="ot">&lt;-</span> <span class="fu">pivot_longer</span>(fish_raw,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                          <span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"bct"</span>, <span class="st">"crct"</span>, <span class="st">"crrb"</span>, <span class="st">"eb"</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"ll"</span>, <span class="st">"bull"</span>, <span class="st">"gr"</span>, <span class="st">"onc"</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"tgt"</span>, <span class="st">"spk"</span>, <span class="st">"srct"</span>, <span class="st">"wct"</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"yct"</span>, <span class="st">"cut"</span>, <span class="st">"cis"</span>, <span class="st">"lwf"</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"gt"</span>, <span class="st">"rb"</span>, <span class="st">"kok"</span>, <span class="st">"pwf"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"mwf"</span>, <span class="st">"lt"</span>, <span class="st">"lmb"</span>, <span class="st">"smb"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"bg"</span>, <span class="st">"pump"</span>, <span class="st">"gsun"</span>, <span class="st">"blcr"</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"whcr"</span>, <span class="st">"wbs"</span>, <span class="st">"rkb"</span>, <span class="st">"nrbdc"</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"bmsh"</span>, <span class="st">"cmsh"</span>, <span class="st">"lsch"</span>, <span class="st">"rdsh"</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"rtch"</span>, <span class="st">"lkch"</span>, <span class="st">"hhch"</span>, <span class="st">"gila"</span>,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"smmn"</span>, <span class="st">"wsmn"</span>, <span class="st">"brmn"</span>, <span class="st">"plmn"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"ws_plmn"</span>, <span class="st">"stch"</span>, <span class="st">"fsdc"</span>, <span class="st">"sfch"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"npdc"</span>, <span class="st">"str"</span>, <span class="st">"pea"</span>, <span class="st">"gsh"</span>,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"emsh"</span>, <span class="st">"spsh"</span>, <span class="st">"sdsh"</span>, <span class="st">"fhmn"</span>,</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"fhch"</span>, <span class="st">"spdc"</span>, <span class="st">"lndc"</span>, <span class="st">"rssh"</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"crch"</span>, <span class="st">"gdf"</span>, <span class="st">"carp"</span>, <span class="st">"blbh"</span>, </span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"ylbh"</span>, <span class="st">"ccat"</span>, <span class="st">"scat"</span>, <span class="st">"ling"</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"drum"</span>, <span class="st">"gar"</span>, <span class="st">"pkf"</span>, <span class="st">"ptmn"</span>,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"ge"</span>, <span class="st">"pf"</span>, <span class="st">"iowa"</span>, <span class="st">"jdt"</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"odt"</span>, <span class="st">"yp"</span>, <span class="st">"sgr"</span>, <span class="st">"we"</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"np"</span>, <span class="st">"tim"</span>, <span class="st">"rmcot"</span>, <span class="st">"mcot"</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"colcot"</span>, <span class="st">"pcot"</span>, <span class="st">"slcot"</span>, <span class="st">"tcot"</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"spcot"</span>, <span class="st">"cfcot"</span>, <span class="st">"rbsm"</span>, <span class="st">"brsb"</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"wstrg"</span>, <span class="st">"pstrg"</span>, <span class="st">"sstrg"</span>, <span class="st">"rcsu"</span>,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"lnsu"</span>, <span class="st">"wsu"</span>, <span class="st">"lssu"</span>, <span class="st">"mtsu"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"plsu"</span>, <span class="st">"bsu"</span>, <span class="st">"smbuf"</span>, <span class="st">"bmbuf"</span>,</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"bhsu"</span>, <span class="st">"gsu"</span>, <span class="st">"b_hx_wsu"</span>, <span class="st">"fmsu"</span>,</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"f_mx_bhsu"</span>, <span class="st">"f_mx_wsu"</span>, <span class="st">"utsu"</span>, <span class="st">"qbk"</span>,</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>                                  <span class="st">"shrh"</span>, <span class="st">"trpr"</span>, <span class="st">"gam"</span>, <span class="st">"gzs"</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>                                  ),</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>                          <span class="at">names_to =</span> <span class="st">"species_0"</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>                          <span class="at">values_to =</span> <span class="st">"present_0"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now we still have about 65 columns that we don’t need. Let’s clean it up a bit and only get the columns we want.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Select relevent columns</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>fish_long_filtered <span class="ot">&lt;-</span> fish_long <span class="sc">%&gt;%</span>  </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>dplyr<span class="sc">::</span><span class="fu">select</span>(gnis_name, month, year, state, precip, air_aug, bfi, flow_aug, present_0, species_0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="data-filtering" class="level2">
+<h2 class="anchored" data-anchor-id="data-filtering">Data filtering</h2>
+<p>We want a sum of the number of species observed per river per August of each year, but we don’t want any duplicates of species being counted in the richness, so let’s get a unique richness count for each summer fishing season.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>aug_richness <span class="ot">&lt;-</span> fish_long_filtered <span class="sc">%&gt;%</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(gnis_name, year) <span class="sc">%&gt;%</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">richness =</span> <span class="fu">sum</span>(present_0),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">mean_precip =</span> <span class="fu">mean</span>(precip),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">mean_bfi =</span> <span class="fu">mean</span>(bfi),</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">air_aug =</span> <span class="fu">mean</span>(air_aug),</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">flow_aug =</span> <span class="fu">mean</span>(flow_aug))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now we have totals of the number of species observed during August of each year for each River in our dataset. We also have average BFI and Precipitation for July and August, and regional averages August air temperature and flow rate across all years.</p>
+<p>Then I want to look at the relationship between richness and precipitation</p>
+<p>Since our richness is a count variable, we’re going to use a Negative Binomial model. Let’s take a look.</p>
+<p><span class="math display">\[
+Richness_{it} \sim \text{Negative Binomial}(\mu_{it}, \theta), \quad
+\log(\mu_{it}) = \beta_0 + \beta_1 \text{precip}_{it} + \beta_2 \text{temp}_{it} + \beta_3 \text{flow}_{it} + \beta_4 \text{bfi}_{it}
+\]</span></p>
+<p>Here we are modeling species Richness for each stream (i) in year (t) using a negative binomial generalized linear model. The expected richness (mu) is linked to environmental predictors through a log link function. We included monthly precipitation (precip), regional average air temperature (temp), regional average river flow (flow), and average baseflow index (bfi) as predictors for species richness. The dispersion parameter (Theta) quantifies the variability in richness beyond what would be expected under a standard Poisson model.</p>
+<p>Here’s what that look like in R. We’ll be using the Negative Binomial GLM function “glm.np” from the “MASS” package.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>nb_mod <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> aug_richness</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                 )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Now, let’s take a look at our model coefficients</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(nb_mod)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+glm.nb(formula = richness ~ mean_precip + air_aug + flow_aug + 
+    mean_bfi, data = aug_richness, init.theta = 1.2616583, link = log)
+
+Coefficients:
+              Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)  2.395e+00  2.720e-01   8.805  &lt; 2e-16 ***
+mean_precip -1.093e-03  5.762e-05 -18.975  &lt; 2e-16 ***
+air_aug      3.405e-02  9.333e-03   3.648 0.000264 ***
+flow_aug     1.175e-02  2.280e-03   5.153 2.56e-07 ***
+mean_bfi    -1.414e-02  2.008e-03  -7.045 1.86e-12 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for Negative Binomial(1.2617) family taken to be 1)
+
+    Null deviance: 5993.6  on 5109  degrees of freedom
+Residual deviance: 5016.4  on 5105  degrees of freedom
+AIC: 24998
+
+Number of Fisher Scoring iterations: 1
+
+              Theta:  1.2617 
+          Std. Err.:  0.0303 
+
+ 2 x log-likelihood:  -24985.8180 </code></pre>
+</div>
+</div>
+</section>
+<section id="interpretation-of-coefficients" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-of-coefficients">Interpretation of Coefficients</h2>
+<p>In order to interpret our coefficients, we’ll have to take them out of log space by calculating % = <span class="math inline">\(100 (1 - e^{\text{result}})\)</span></p>
+<ul>
+<li><p><strong>mean_precip (-0.001093)</strong>: Slight negative effect — as mean precipitation increases by one unit, expected richness decreases by ~0.11% (<span class="math inline">\(e^{-0.001093} \approx 0.999\)</span>).</p></li>
+<li><p><strong>air_aug (0.03405)</strong>: Positive effect — each 1 °C increase in August air temperature increases expected richness by ~3.5% (<span class="math inline">\(e^{0.03405} \approx 1.035\)</span>).</p></li>
+<li><p><strong>flow_aug (0.01175)</strong>: Positive effect — each unit increase in August river flow increases expected richness by ~1.2% (<span class="math inline">\(e^{0.01175} \approx 1.012\)</span>).</p></li>
+<li><p><strong>mean_bfi (-0.01414)</strong>: Negative effect — higher baseflow index is associated with a ~1.4% decrease in expected richness per unit (<span class="math inline">\(e^{-0.01414} \approx 0.986\)</span>).</p></li>
+<li><p><strong>Theta (1.2617)</strong>: Dispersion parameter for the negative binomial, quantifying variability in richness beyond what would be expected under a Poisson model.</p></li>
+<li><p><strong>Significance</strong>: All predictors are highly significant (p &lt; 0.001), indicating robust associations with richness.</p></li>
+</ul>
+<p>These results are not exactly what one might expect. Increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Let’s see if we can recreate our results with simulated data.</p>
+</section>
+<section id="simulating-data" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-data">Simulating Data</h2>
+<section id="extract-our-coefficients" class="level3">
+<h3 class="anchored" data-anchor-id="extract-our-coefficients"><strong>1) Extract our coefficients</strong></h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficients (log-scale)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>coefs <span class="ot">&lt;-</span> <span class="fu">coef</span>(nb_mod)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Theta (dispersion parameter)</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> nb_mod<span class="sc">$</span>theta</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="create-our-new-data-using-values-from-our-actual-data" class="level3">
+<h3 class="anchored" data-anchor-id="create-our-new-data-using-values-from-our-actual-data"><strong>2) Create our new data using values from our actual data</strong></h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create new data grid with simulated values</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>new_data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="at">mean_precip =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>mean_precip), <span class="fu">max</span>(aug_richness<span class="sc">$</span>mean_precip),</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>             <span class="at">length.out =</span> <span class="dv">100</span>), <span class="co"># Get 100 different values for precip</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">air_aug =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>air_aug), <span class="fu">max</span>(aug_richness<span class="sc">$</span>air_aug),</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">length.out=</span> <span class="dv">10</span>),  <span class="co"># 10 different values for air temp</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="at">flow_aug =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>flow_aug), <span class="fu">max</span>(aug_richness<span class="sc">$</span>flow_aug),</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>              <span class="at">length.out =</span> <span class="dv">10</span>), <span class="co"># 10 different values for flow</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="at">mean_bfi =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>mean_bfi), <span class="fu">max</span>(aug_richness<span class="sc">$</span>mean_bfi),</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>               <span class="at">length.out =</span> <span class="dv">5</span>) <span class="co"># 5 different values for BFI</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="compute-expected-values-for-richness-using-our-model-and-our-simulated-data" class="level3">
+<h3 class="anchored" data-anchor-id="compute-expected-values-for-richness-using-our-model-and-our-simulated-data"><strong>3) Compute expected values for richness using our model and our simulated data</strong></h3>
+<p>These predictions will be in link space.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>log_richness_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(nb_mod, <span class="at">newdata =</span> new_data, <span class="at">type =</span> <span class="st">"link"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="take-expected-richness-values-out-of-log-space." class="level3">
+<h3 class="anchored" data-anchor-id="take-expected-richness-values-out-of-log-space."><strong>4) Take expected richness values out of log space.</strong></h3>
+<p>This gives us meaningful richness values</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>richness_pred <span class="ot">&lt;-</span> <span class="fu">exp</span>(log_richness_pred)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="fifth-simulate-random-richness-values-based-on-our-expected-values-and-our-model-dispersion-theta" class="level3">
+<h3 class="anchored" data-anchor-id="fifth-simulate-random-richness-values-based-on-our-expected-values-and-our-model-dispersion-theta"><strong>5) Fifth, simulate random richness values based on our expected values and our model dispersion (theta)</strong></h3>
+<p>The values generated in our last step are expected values based on the parameters we provided, but rnbinom() creates random draws from that distributio, allowing our simulation to closer resemble reality.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>sim_richness <span class="ot">&lt;-</span> <span class="fu">rnbinom</span>(</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">n  =</span> <span class="fu">length</span>(richness_pred), <span class="co"># number of observations</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu =</span> richness_pred,  <span class="co"># expected richness from model</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">size =</span> theta  <span class="co"># dispersion parameter from fitted model</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Add to our new_data dataframe</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>new_data<span class="sc">$</span>sim_richness <span class="ot">&lt;-</span> sim_richness</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="fit-negative-binomial-model-to-simulated-data" class="level3">
+<h3 class="anchored" data-anchor-id="fit-negative-binomial-model-to-simulated-data"><strong>6) Fit Negative Binomial model to simulated data</strong></h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>nb_model_sim <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  sim_richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> new_data</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="check-model-summary-and-compare-coefficients" class="level3">
+<h3 class="anchored" data-anchor-id="check-model-summary-and-compare-coefficients"><strong>7) Check model summary and compare Coefficients</strong></h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(nb_model_sim)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+glm.nb(formula = sim_richness ~ mean_precip + air_aug + flow_aug + 
+    mean_bfi, data = new_data, init.theta = 1.249220735, link = log)
+
+Coefficients:
+              Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)  2.329e+00  3.807e-02   61.18   &lt;2e-16 ***
+mean_precip -1.081e-03  7.702e-06 -140.39   &lt;2e-16 ***
+air_aug      3.669e-02  1.992e-03   18.42   &lt;2e-16 ***
+flow_aug     1.193e-02  4.729e-04   25.23   &lt;2e-16 ***
+mean_bfi    -1.414e-02  1.874e-04  -75.43   &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for Negative Binomial(1.2492) family taken to be 1)
+
+    Null deviance: 82963  on 49999  degrees of freedom
+Residual deviance: 54730  on 49995  degrees of freedom
+AIC: 226139
+
+Number of Fisher Scoring iterations: 1
+
+              Theta:  1.2492 
+          Std. Err.:  0.0121 
+
+ 2 x log-likelihood:  -226127.4890 </code></pre>
+</div>
+</div>
+</section>
+<section id="notes-for-henry" class="level3">
+<h3 class="anchored" data-anchor-id="notes-for-henry">NOTES FOR HENRY</h3>
+<p>Next step - Run a bunch of simulations, generate confidence intervals. Plot Some stuff. You’ve got it champ.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
