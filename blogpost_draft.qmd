@@ -14,6 +14,8 @@ library(here)
 library(dagitty)
 library(ggdag)
 library(MASS)
+library(broom)
+library(knitr)
 
 ```
 
@@ -24,6 +26,13 @@ Freshwater fish presence and species richness is a vital metric for stream healt
 ## Question
 
 How is freshwater fish diversity affected by precipitation in Northwest rivers and streams?
+
+## Hypothesis
+
+The null hypothesis for this experiment is that precipitation has no effect on species richness.
+
+
+The alternative hypothesis is that precipitation has an effect on species richness.
 
 
 ## Data
@@ -58,14 +67,11 @@ Richness: Number of species observed in a given stream
 
 dag <- dagitty('
 dag {
-  "Precipitation" -> "BFI"
-  "Air Temp" -> "BFI"
-  "Air Temp" -> "Precipitation"
-  "Flow" -> "BFI"
   "Precipitation" -> "Richness"
-  "BFI" -> "Richness"
-  "Flow" -> "Richness"
-  "Air Temp" -> "Richness"
+  "Precipitation" -> "Flow" -> "Richness"
+  "Precipitation" -> "BFI" -> "Richness"
+  "AirTemp" -> "Precipitation"
+  "AirTemp" -> "Richness"
 
 }
 ')
@@ -134,6 +140,8 @@ fish_long <- pivot_longer(fish_raw,
 
 ```
 
+[Picture of Long Data]
+
 Now we still have about 65 columns that we don't need. Let's clean it up a bit and only get the columns we want.
 
 ```{r}
@@ -142,20 +150,42 @@ fish_long_filtered <- fish_long %>%
 dplyr::select(gnis_name, month, year, state, precip, air_aug, bfi, flow_aug, present_0, species_0)
 ```
 
+[Picture of Long Data]
+
+
 ## Data filtering
 We want a sum of the number of species observed per river per August of each year, but we don't want any duplicates of species being counted in the richness, so let's get a unique richness count for each summer fishing season.
 
 ```{r}
 #| message: false
 aug_richness <- fish_long_filtered %>% 
+  filter(present_0 == 1) %>%  # Only keep rows where species is present
   group_by(gnis_name, year) %>% 
-  summarize(richness = sum(present_0),
-            mean_precip = mean(precip),
-            mean_bfi = mean(bfi),
-            air_aug = mean(air_aug),
-            flow_aug = mean(flow_aug))
+  summarize(
+    richness = n_distinct(species_0),  # Count distinct species, avoid duplicates
+    mean_precip = mean(precip),
+    mean_bfi = mean(bfi),
+    air_aug = mean(air_aug),
+    flow_aug = mean(flow_aug)
+  )
+```
+
+Let's take a look at our raw data
+```{r}
+# Plot richness as a function of precipitation
+ggplot(aug_richness, aes(x = mean_precip, y = richness)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "loess", color = "red") +
+  labs(
+    title = "Raw Data: Precipitation vs Species Richness",
+    x = "Mean Precipitation (mm)",
+    y = "Species Richness"
+  ) +
+  theme_minimal()
+
 
 ```
+
 
 Now we have totals of the number of species observed during August of each year for each River in our dataset. We also have average BFI and Precipitation for July and August, and regional averages August air temperature and flow rate across all years. 
 
@@ -182,6 +212,9 @@ Now, let's take a look at our model coefficients
 
 ```{r}
 summary(nb_mod)
+
+tidy(nb_mod) %>% 
+  kable(digits = 4, caption = "Negative Binomial Model Summary")
 ```
 
 ## Interpretation of Coefficients
@@ -201,7 +234,7 @@ In order to interpret our coefficients, we'll have to take them out of log space
 - **Significance**: All predictors are highly significant (p < 0.001), indicating robust associations with richness.
 
 
-These results are not exactly what one might expect. Increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Let's see if we can recreate our results with simulated data.
+According to our results, increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Let's see if we can recreate our results with simulated data. Once we have a viable method for simulating our data, we can bootstrap, and find out our degree of confidence in our results.
 
 ## Simulating Data 
 
@@ -244,14 +277,15 @@ log_richness_pred <- predict(nb_mod, newdata = new_data, type = "link")
 ```
 
 ### **4) Take expected richness values out of log space.**
-This gives us meaningful richness values
+This gives us meaningful richness values that we can use in our 
 
 ```{r}
 richness_pred <- exp(log_richness_pred)
+
 ```
 
 ### **5) Fifth, simulate random richness values based on our expected values and our model dispersion (theta)**
-The values generated in our last step are expected values based on the parameters we provided, but rnbinom() creates random draws from that distributio, allowing our simulation to closer resemble reality.
+The values generated in our last step are expected values based on the parameters we provided, but rnbinom() creates random draws from that distribution, allowing our simulation to closer resemble reality.
 
 ```{r}
 # Set seed for reproducibility
@@ -270,6 +304,7 @@ new_data$sim_richness <- sim_richness
 ```
 
 ### **6) Fit Negative Binomial model to simulated data**
+Now we fit our negative binomial model from above, but this time using our simulated data. If we did everything correctly, our resulting coefficients should be very similar to the coefficients of our original data.
 
 ```{r}
 nb_model_sim <- glm.nb(
@@ -283,7 +318,98 @@ nb_model_sim <- glm.nb(
 ```{r}
 summary(nb_model_sim)
 
+model_orig <- tidy(nb_mod) %>% 
+  mutate(model = "Original")
+
+model_sim <- tidy(nb_model_sim) %>% 
+  mutate(model = "Simulated")
+
+comparison_table <- bind_rows(model_orig, model_sim)
+comparison_table
 ```
+
+Our coefficients are very similar, which shouldn't be very surprising because we built our simulation on the results from our original model. But it does introduce a degree of randomness which allows us assess the accuracy of our model. Now, we can use simulated data to generate confidence intervals for our results.  We'll run our simulation 500 times
+
+### **8) Simulating new datasets**
+
+First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I'll hold the other values constant by using their median value, indexed from my lists provided in `new_data`
+
+```{r}
+precip_only_data <- new_data %>%
+  filter(
+    air_aug == sort(unique(air_aug))[5],      # 5th of 10 values (middle)
+    flow_aug == sort(unique(flow_aug))[5],    # 5th of 10 values (middle)
+    mean_bfi == sort(unique(mean_bfi))[3]     # 3rd of 5 values (middle)
+  )
+```
+
+Second, I want to bootstrap 
+
+```{r}
+set.seed(123)
+# Define number of simulations
+n_sims <- 500
+
+# Create a matrix to populate with boothstrap data, same rows as our precip_only_data  and one column for each simulation
+pred_matrix_boot <- matrix(NA, nrow = nrow(precip_only_data), ncol = n_sims)
+
+# Bootstrap for each simulation
+for(i in 1:n_sims){
+  # Bootstrap: resample original data
+  boot_indices <- sample(1:nrow(aug_richness), replace = TRUE)
+  boot_data <- aug_richness[boot_indices, ]
+  
+  # Fit model to bootstrap sample
+  boot_mod <- glm.nb(richness ~ mean_precip + air_aug + flow_aug + mean_bfi,
+                     data = boot_data)
+  
+  # Predict on precip_only_data 
+  pred_matrix_boot[,i] <- predict(boot_mod, newdata = precip_only_data, type = "response")
+}
+```
+
+Third, I will define my 5% confidence intervals, and then add those values to my precip_only_data dataframe
+```{r}
+# THIRD: Calculate confidence intervals
+pred_mean <- rowMeans(pred_matrix_boot)
+pred_lower <- apply(pred_matrix_boot, 1, quantile, probs = 0.025)
+pred_upper <- apply(pred_matrix_boot, 1, quantile, probs = 0.975)
+
+# Add to precip_only_data
+precip_only_data <- precip_only_data %>%
+  mutate(
+    pred_mean  = pred_mean,
+    pred_lower = pred_lower,
+    pred_upper = pred_upper
+  )
+```
+
+Now that we have our predictions for precipitation based on simulations, while holding all other variables constant, we can plot our data with confidence intervals
+
+
+
+```{r}
+ggplot(precip_only_data, aes(x = mean_precip, y = pred_mean)) +
+  geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), 
+              alpha = 0.3, fill = "steelblue") +
+  geom_line(color = "darkblue", linewidth = 1) +
+  labs(
+    x = "Mean Precipitation (mm)", 
+    y = "Predicted Species Richness",
+    title = "Effect of Precipitation on Fish Species Richness",
+    subtitle = "Other variables held at middle values (95% CI from 500 bootstrap samples)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray40"),
+    axis.title = element_text(size = 12)
+  )
+```
+Interpretation: What do the confidence intervals tell us?
+
+Based on 500 bootstrap samples of the data, we're 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It's important to make understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams.
+
 
 
 ### NOTES FOR HENRY
