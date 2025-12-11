@@ -1,12 +1,14 @@
 ---
-title: "Fish Species Richness In US Northwest"
+title: "Modeling Precipitation as a Predictor for Fish Species Richness In US Northwest"
 author: Henry Oliver
 format: html
+code-fold: true
 ---
 
 
 ```{r}
 #| message: False
+#| code-fold: true
 set.seed(123)
 library(tidyverse)
 library(janitor)
@@ -16,14 +18,22 @@ library(ggdag)
 library(MASS)
 library(broom)
 library(knitr)
+library(kableExtra)
 
 ```
 
 ## Background
 
-Freshwater fish presence and species richness is a vital metric for stream health. Stream health is very important to the economies for Montana, Wyoming, Idaho and the Dakotas. As global heating trends cause decreases in snowfall and increases in air temperature, these streams are at risk, and so are the fish that swim in them. In order to protect stream life, it's important that we research the relationships between biotic factors and their environment.
+Freshwater fish presence and species richness is a vital metric for stream health. Stream health is intrinsically tied to water quality, water availability, agriculture and industrial processes, making it incredibly important to local economies. Moreover, stream health is a major part of the recreation and tourism economies for stream-rich states like Montana, Wyoming, Idaho and the Dakotas. As global heating trends cause decreases in snowfall and increases in air temperature, these streams are at risk, and so are the fish that swim in them. In order to protect stream life, it's important that we research the relationships between biotic factors and their environment. Precipitation is a key driver of stream conditions, controlling water volume, flow rates, turbidity, and temperature—factors that determine which fish species can thrive in a given stream. By identifying direct relationships between precipitation and species richness, we can build a better idea of how we can expect or freshwater ecological landscape to change in the coming years; and ideally how we can preserve our freshwater resources for future generations.
 
-## Question
+```{r}
+knitr::include_graphics(here("big_hole.jpeg"))
+```
+*Big Hole River, Montana, September 2023. Photo credit Henry Oliver*
+
+
+
+## Research Question
 
 How is freshwater fish diversity affected by precipitation in Northwest rivers and streams?
 
@@ -31,38 +41,45 @@ How is freshwater fish diversity affected by precipitation in Northwest rivers a
 
 The null hypothesis for this experiment is that precipitation has no effect on species richness.
 
+$$H_0: \beta_{\text{precip}} = 0$$
 
 The alternative hypothesis is that precipitation has an effect on species richness.
 
+$$H_A: \beta_{\text{precip}} \not= 0$$
 
 ## Data
 
-The University of Wyoming Stream Species Dataset is a species presence dataset containing presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states. It contains data from 40,490 unique sample events (location, month, year). Data was derived from multiple sources (Table 1) and limited to fish occurrences in rivers and streams.
-This dataset was compiled by combining data from agency databases, the Global Biodiversity Information Facility, university theses, peer-reviewed literature, grey-literature reports, and unpublished data from the University of Wyoming. Please note that absence (0) values only indicate that a species was not recorded by observers and should not be used as true absences in analyses.
+The data used in the this analysis is the The University of Wyoming Stream Species Dataset. This multi-generational composition is a species presence dataset containing presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states dating back to the year 1900. It contains data from 40,490 unique sample events (location, month, year), and was compiled by combining data from agency databases, the Global Biodiversity Information Facility, university theses, peer-reviewed literature, grey-literature reports, and unpublished data from the University of Wyoming. Please note that absence (0) values only indicate that a species was not recorded by observers and should not be used as true absences in analyses.
 
 ```{r}
-## Map of shapefile showing all rivers
+knitr::include_graphics(here("data-1.png"))
+```
+```{r}
+knitr::include_graphics(here("data-2.png"))
+```
 
 
+```{r}
+knitr::include_graphics(here("study_area.png"))
 ```
 
 ## Methods
 
 I'll be modeling the relationship between precipitation and fish species richness using a negative binomial model.
 
-## Variable and DAG
+## Variables and DAG
 
-Precipitation: Mm precipitation recorded during the month of observation
+**Precipitation**: Mm precipitation recorded during the month of observation
 
-Base Flow Index (BFI): Expression of groundwater vs. surface water flow in for each water body
+**Base Flow Index (BFI)**: Expression of groundwater vs. surface water flow in for each water body.
 
-Air Temperature: Average air temperature during the month of August for each river. NOT For each year. These temperatures are a regional average over many years.
+**Air Temperature**: Average air temperature during the month of August for each river. NOT For each year. These temperatures are a regional average over many years.
 
-Flow: Many-year average flow rate during the month of August for each river.
+**Flow**: Many-year average flow rate during the month of August for each river.
 
-Richness: Number of species observed in a given stream
+**Richness**: Number of species observed in a given stream
 
-## Dag
+## DAG
 ```{r}
 
 dag <- dagitty('
@@ -78,28 +95,36 @@ dag {
 
 # Plot Dag
 ggdag(dag) +
-  geom_dag_point( color = "darkgrey") +
-  geom_dag_text(color = "black")
+  geom_dag_point(color = "white") +
+  geom_dag_text(color = "black") +
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "lightblue"),
+    plot.background = element_rect(fill = "lightblue"),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank()
+  )
 
 ```
 
-(((Descriptio of DAG)))
+This directed acyclic graph (DAG) represents the hypothesized causal relationships between environmental variables and fish species richness in streams. Precipitation has both direct and indirect effects on species richness. Directly, precipitation levels may influence habitat availability and water chemistry. Indirectly, precipitation affects richness through two pathways: stream flow (higher precipitation increases flow rates) and baseflow index (BFI), which measures the proportion of streamflow from groundwater sources vs precipitation for a given stream. Air temperature also plays a dual role -- it influences precipitation patterns (warmer air affects rainfall and snowfall) and has a direct effect on species richness by affecting water temperature and the movement and feeding patterns of fish.
 
 ## Reading in our fish data
 
-This data set has over 40,000 entries of varying quality dating back to 1800. So we'll want to filter some of that information out. For this analysis, I'll just be looking at the last available century of data. My `select()` function below removes some of the columns that are not necessary for this analysis
+This data set has over 40,000 entries of varying quality dating back to 1800. So we'll want to filter some of that information out. For this analysis, I'll just be looking at the last available 50 years of data. In order to simplify things, we'll also only be looking at the month of August, for which average air temperatures and flow rates have been recorded for each stream in the dataset. August is also notably the peak of this fishing season in Montana and Wyoming. The `filter()` function narrows our time-frame, and the `select()` function below removes some of the columns that are not necessary for this analysis
 ```{r}
 #| message: false
 fish_raw <- read_csv(here("data","StreamSpeciesDataset_v1_1_3_edited.csv")) %>% 
   clean_names() %>% 
   filter(year >= 1972, year <= 2022) %>% # 50 Years of data
-  filter(month %in% c("8"))
+  filter(month %in% c("8")) # Month of august
 
 ```
 
 Right now, our data table has one column for each species of fish, with a value of 1 or 0 indicating presence or non-presence. For analysis like these, 'long' formatted data is better. So we're going to pivot our columns for each species into two columns, one for 'species' and one for 'presence'.
 
-(((Note for Henry: Turn this into a list so you can hide all the species names)))
 
 ```{r}
 # Pivot longer so that each species has it's own row
@@ -140,9 +165,7 @@ fish_long <- pivot_longer(fish_raw,
 
 ```
 
-[Picture of Long Data]
-
-Now we still have about 65 columns that we don't need. Let's clean it up a bit and only get the columns we want.
+Now we still have about 65 columns that we don't need. Let's clean it up a bit and only get the columns we want. We're looking at precipitation, air temperature, base-flow index, flow, and species presence. It also won't hurt to keep stream names, year and location.
 
 ```{r}
 # Select relevent columns
@@ -150,10 +173,16 @@ fish_long_filtered <- fish_long %>%
 dplyr::select(gnis_name, month, year, state, precip, air_aug, bfi, flow_aug, present_0, species_0)
 ```
 
-[Picture of Long Data]
+Let's take a look at our data after the transformations.
+
+```{r}
+knitr::kable(head(fish_long_filtered),
+             caption = "Transformed Fish Data")
+```
 
 
-## Data filtering
+
+## Data Filtering
 We want a sum of the number of species observed per river per August of each year, but we don't want any duplicates of species being counted in the richness, so let's get a unique richness count for each summer fishing season.
 
 ```{r}
@@ -172,10 +201,12 @@ aug_richness <- fish_long_filtered %>%
 
 Let's take a look at our raw data
 ```{r}
+#| message: false
 # Plot richness as a function of precipitation
 ggplot(aug_richness, aes(x = mean_precip, y = richness)) +
   geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", color = "red") +
+  geom_smooth(method = "loess", color = "red") + # Local smoothing line of best fit
+                                                 # Assumes linearity/non-linearity is unknown
   labs(
     title = "Raw Data: Precipitation vs Species Richness",
     x = "Mean Precipitation (mm)",
@@ -185,22 +216,24 @@ ggplot(aug_richness, aes(x = mean_precip, y = richness)) +
 
 
 ```
+## Negative Binomial Model
 
+Now we have totals of the number of species observed during August of each year for each River in our dataset. We also have average BFI and Precipitation for July and August, and regional averages August air temperature and flow rate across all years. I want to look at the relationship between richness and precipitation, while using flow, air temperature, and base-flow index as parameters. Since our richness is a count variable, we should use a Poisson or a Negative Binomial model. I'm choosing to use a Negative Binomial model due to the likelihood that my data is 'overdispersed'.
 
-Now we have totals of the number of species observed during August of each year for each River in our dataset. We also have average BFI and Precipitation for July and August, and regional averages August air temperature and flow rate across all years. 
+Overdispersion occurs where the variance in the data exceeds the mean—a violation of the Poisson distribution's assumption that mean equals variance. Ecological count data are particularly prone to overdispersion because species observations are influenced by numerous factors that can't be accounted for in our model. Factors like sampling variations, waste discharge, and food availability. Fish communities may cluster together in very small or inaccessible locations, leading to some sites with many species and others with very few, creating higher variance than a Poisson model can accommodate. The Negative Binomial model addresses this by including an additional dispersion parameter, theta, making it more flexible and appropriate for ecological count data. Let's take a look.
 
-Then I want to look at the relationship between richness and precipitation
-
-Since our richness is a count variable, we're going to use a Negative Binomial model. Let's take a look.
+Let's take a look.
 
 $$
-Richness_{it} \sim \text{Negative Binomial}(\mu_{it}, \theta), \quad
-\log(\mu_{it}) = \beta_0 + \beta_1 \text{precip}_{it} + \beta_2 \text{temp}_{it} + \beta_3 \text{flow}_{it} + \beta_4 \text{bfi}_{it}
+\begin{aligned}
+Richness_{it} &\sim \text{Negative Binomial}(\mu_{it}, \theta) \\
+\log(\mu_{it}) &= \beta_0 + \beta_1 \text{precip}_{it} + \beta_2 \text{temp}_{it} + \beta_3 \text{flow}_{it} + \beta_4 \text{bfi}_{it}
+\end{aligned}
 $$
 
 Here we are modeling species Richness for each stream (i) in year (t) using a negative binomial generalized linear model. The expected richness (mu) is linked to environmental predictors through a log link function. We included monthly precipitation (precip), regional average air temperature (temp), regional average river flow (flow), and average baseflow index (bfi) as predictors for species richness. The dispersion parameter (Theta) quantifies the variability in richness beyond what would be expected under a standard Poisson model.
 
-Here's what that look like in R. We'll be using the Negative Binomial GLM function "glm.np" from the "MASS" package.
+Here's what that look like in R. We'll be using the Negative Binomial GLM function `glm.np` from the `MASS` package.
 
 ```{r}
 nb_mod <- glm.nb(richness ~ mean_precip + air_aug + flow_aug + mean_bfi,
@@ -211,34 +244,34 @@ nb_mod <- glm.nb(richness ~ mean_precip + air_aug + flow_aug + mean_bfi,
 Now, let's take a look at our model coefficients
 
 ```{r}
-summary(nb_mod)
-
 tidy(nb_mod) %>% 
   kable(digits = 4, caption = "Negative Binomial Model Summary")
 ```
 
-## Interpretation of Coefficients
+## Interpretation of Coefficients and Hypothesis Testing
 
-In order to interpret our coefficients, we'll have to take them out of log space by calculating % = $100 (1 - e^{\text{result}})$
+In order to interpret our coefficients, we'll have to take them out of log space by calculating the percentage change as $100 \times (e^{\beta} - 1)$ for positive effects or $100 \times (1 - e^{\beta})$ for negative effects. I'll draw your attention to the mean precipitation, Theta, and Significance rows. These coefficients are what we're most interested in for determining if our model is appropriate, and showing a relationship between our key variables - richness and precipitation.
 
-- **mean_precip (-0.001093)**: Slight negative effect — as mean precipitation increases by one unit, expected richness decreases by ~0.11% ($e^{-0.001093} \approx 0.999$).
+* - **mean_precip (-0.001024)**: Negative effect — as mean precipitation increases by one unit, expected richness decreases by ~0.10% ($e^{-0.001024} \approx 0.999$). This suggests that higher precipitation slightly reduces fish diversity, possibly due to increased flow disturbance or habitat instability.
 
-- **air_aug (0.03405)**: Positive effect — each 1 °C increase in August air temperature increases expected richness by ~3.5% ($e^{0.03405} \approx 1.035$).
+- **air_aug (0.04250)**: Positive effect — each 1°C increase in August air temperature increases expected richness by ~4.3% ($e^{0.04250} \approx 1.043$). Warmer temperatures may enhance metabolic rates and expand suitable habitat for diverse species.
 
-- **flow_aug (0.01175)**: Positive effect — each unit increase in August river flow increases expected richness by ~1.2% ($e^{0.01175} \approx 1.012$).
+- **flow_aug (0.004867)**: Positive effect — each unit increase in August river flow increases expected richness by ~0.49% ($e^{0.004867} \approx 1.005$). Higher flows may provide more diverse habitat types and increased oxygenation.
 
-- **mean_bfi (-0.01414)**: Negative effect — higher baseflow index is associated with a ~1.4% decrease in expected richness per unit ($e^{-0.01414} \approx 0.986$).
+- **mean_bfi (-0.01148)**: Negative effect — higher baseflow index is associated with a ~1.14% decrease in expected richness per unit ($e^{-0.01148} \approx 0.989$). Streams with more groundwater contribution (higher BFI) tend to have less variable flow regimes, which may reduce habitat diversity.
 
-- **Theta (1.2617)**: Dispersion parameter for the negative binomial, quantifying variability in richness beyond what would be expected under a Poisson model.
+* - **Theta (4.178)**: Dispersion parameter for the negative binomial, quantifying variability in richness beyond what would be expected under a Poisson model. A theta of 4.18 indicates moderate overdispersion in the data.
 
-- **Significance**: All predictors are highly significant (p < 0.001), indicating robust associations with richness.
+* - **Significance**: Mean precipitation, air temperature, and BFI are highly significant (p < 0.001), while flow is significant at the p < 0.01 level, indicating robust associations with richness.
 
 
-According to our results, increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Let's see if we can recreate our results with simulated data. Once we have a viable method for simulating our data, we can bootstrap, and find out our degree of confidence in our results.
+According to our results, increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Our Theta also indicates that the Negative Binomial model was the right choice. It looks like all of our results are statistically significant as well. This means something very important about our hypothesis from earlier. Because precipitation has a measurable effect on species richness, and our p-value for our precipitation coefficient is lower that our significance threshold of 0.05, we can **reject our null hypothesis** that precipitation has no effect on species richness.
+
+Now, we want to see how our model performs with simulated data. Let's see if we can recreate our results with simulated data. Once we have a viable method for simulating our data, we can bootstrap, and find out our degree of confidence in our results.
 
 ## Simulating Data 
 
-### **1) Extract our coefficients**
+##### **1) Extract our coefficients**
 
 ```{r}
 # Coefficients (log-scale)
@@ -247,7 +280,9 @@ coefs <- coef(nb_mod)
 theta <- nb_mod$theta
 ```
 
-### **2) Create our new data using values from our actual data**
+##### **2) Create our new data using values from our actual data**
+
+In order to produce simulations we'll need a new dataset. We'll build this new dataset based on the range and distribution of our actual data.
 
 ```{r}
 # Set seed for reproducibility
@@ -269,23 +304,25 @@ mean_bfi = seq(min(aug_richness$mean_bfi), max(aug_richness$mean_bfi),
 )
 ```
 
-### **3) Compute expected values for richness using our model and our simulated data** 
+##### **3) Compute expected values for richness using our model and our simulated data** 
 These predictions will be in link space.
 
 ```{r}
 log_richness_pred <- predict(nb_mod, newdata = new_data, type = "link")
 ```
 
-### **4) Take expected richness values out of log space.**
-This gives us meaningful richness values that we can use in our 
+##### **4) Take expected richness values out of link space.**
+This gives us meaningful richness values that we can use in our simulations. Let's take a look at our values in link space (top) and our actual estimates (bottom).
 
 ```{r}
 richness_pred <- exp(log_richness_pred)
+head(log_richness_pred)
+head(richness_pred)
 
 ```
 
-### **5) Fifth, simulate random richness values based on our expected values and our model dispersion (theta)**
-The values generated in our last step are expected values based on the parameters we provided, but rnbinom() creates random draws from that distribution, allowing our simulation to closer resemble reality.
+##### **5) Simulate random richness values based on our expected values and our model dispersion (theta)**
+The values generated in our last step are expected values based on the parameters we provided, but `rnbinom()` creates random draws from that distribution, allowing our simulation to closer resemble reality.
 
 ```{r}
 # Set seed for reproducibility
@@ -303,7 +340,7 @@ new_data$sim_richness <- sim_richness
 
 ```
 
-### **6) Fit Negative Binomial model to simulated data**
+##### **6) Fit Negative Binomial model to simulated data**
 Now we fit our negative binomial model from above, but this time using our simulated data. If we did everything correctly, our resulting coefficients should be very similar to the coefficients of our original data.
 
 ```{r}
@@ -313,10 +350,9 @@ nb_model_sim <- glm.nb(
 )
 ```
 
-### **7) Check model summary and compare Coefficients**
+##### **7) Check model summary and compare Coefficients**
 
 ```{r}
-summary(nb_model_sim)
 
 model_orig <- tidy(nb_mod) %>% 
   mutate(model = "Original")
@@ -325,13 +361,24 @@ model_sim <- tidy(nb_model_sim) %>%
   mutate(model = "Simulated")
 
 comparison_table <- bind_rows(model_orig, model_sim)
-comparison_table
+
+comparison_table %>% 
+  dplyr::select(term, estimate, model) %>% 
+  pivot_wider(names_from = model, 
+              values_from = c(estimate)) %>% 
+  kable(digits = 4,
+        col.names = c("Term", "Original Estimate", "Simulated Estimate"),
+        caption = "Model Comparison: Original vs Simulated Data") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+
 ```
 
-Our coefficients are very similar, which shouldn't be very surprising because we built our simulation on the results from our original model. But it does introduce a degree of randomness which allows us assess the accuracy of our model. Now, we can use simulated data to generate confidence intervals for our results.  We'll run our simulation 500 times
+Our coefficients are very similar, which shouldn't be very surprising because we built our simulation on the results from our original model. But it does introduce a degree of randomness which allows us assess the accuracy of our model. Now, we can use simulated data and bootstrapping to generate confidence intervals for our results.  We'll run our simulation 500 times
 
-### **8) Simulating new datasets**
+## Building Confidence Intervals
 
+##### **1) Variable filtering**
 First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I'll hold the other values constant by using their median value, indexed from my lists provided in `new_data`
 
 ```{r}
@@ -343,7 +390,9 @@ precip_only_data <- new_data %>%
   )
 ```
 
-Second, I want to bootstrap 
+##### **2) Bootstrapping**
+
+Bootstrapping is a resampling technique that allows us to estimate the uncertainty in our model predictions by repeatedly sampling from our data with replacement. In this context, we'll simulate 500 new datasets based on our model parameters, fit the negative binomial model to each simulated dataset, and generate predictions for richness. This process creates a distribution of predicted richneses values for each precipitation level, which we can use to calculate confidence intervals. Confidence intervals will tell us about the likelihood that we're capturing the actual relationship between precipitation and richness from our data with our model.
 
 ```{r}
 set.seed(123)
@@ -368,9 +417,10 @@ for(i in 1:n_sims){
 }
 ```
 
-Third, I will define my 5% confidence intervals, and then add those values to my precip_only_data dataframe
+##### **3) Confidence Intervals**
+Third, I will define my 5% confidence intervals, and then add those values to my `precip_only_data` dataframe
 ```{r}
-# THIRD: Calculate confidence intervals
+# Calculate confidence intervals
 pred_mean <- rowMeans(pred_matrix_boot)
 pred_lower <- apply(pred_matrix_boot, 1, quantile, probs = 0.025)
 pred_upper <- apply(pred_matrix_boot, 1, quantile, probs = 0.975)
@@ -386,16 +436,14 @@ precip_only_data <- precip_only_data %>%
 
 Now that we have our predictions for precipitation based on simulations, while holding all other variables constant, we can plot our data with confidence intervals
 
-
-
 ```{r}
 ggplot(precip_only_data, aes(x = mean_precip, y = pred_mean)) +
-  geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), 
+  geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), # Confidence intervals
               alpha = 0.3, fill = "steelblue") +
-  geom_line(color = "darkblue", linewidth = 1) +
+  geom_line(color = "darkblue", linewidth = 1) + # 
   labs(
     x = "Mean Precipitation (mm)", 
-    y = "Predicted Species Richness",
+    y = "Predicted Species Richness (count)",
     title = "Effect of Precipitation on Fish Species Richness",
     subtitle = "Other variables held at middle values (95% CI from 500 bootstrap samples)"
   ) +
@@ -406,12 +454,13 @@ ggplot(precip_only_data, aes(x = mean_precip, y = pred_mean)) +
     axis.title = element_text(size = 12)
   )
 ```
-Interpretation: What do the confidence intervals tell us?
+
+--
+
+**Interpretation: What do the confidence intervals tell us?**
 
 Based on 500 bootstrap samples of the data, we're 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It's important to make understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams.
 
 
+## Conclusions
 
-### NOTES FOR HENRY
-
-Next step - Run a bunch of simulations, generate confidence intervals. Plot Some stuff. You've got it champ.
