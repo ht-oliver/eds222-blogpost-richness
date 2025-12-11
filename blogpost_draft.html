@@ -228,8 +228,8 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <p>I’ll be modeling the relationship between precipitation and fish species richness using a negative binomial model.</p>
 </section>
-<section id="variable-and-dag" class="level2">
-<h2 class="anchored" data-anchor-id="variable-and-dag">Variable and DAG</h2>
+<section id="variables-and-dag" class="level2">
+<h2 class="anchored" data-anchor-id="variables-and-dag">Variables and DAG</h2>
 <p><strong>Precipitation</strong>: Mm precipitation recorded during the month of observation</p>
 <p><strong>Base Flow Index (BFI)</strong>: Expression of groundwater vs.&nbsp;surface water flow in for each water body.</p>
 <p><strong>Air Temperature</strong>: Average air temperature during the month of August for each river. NOT For each year. These temperatures are a regional average over many years.</p>
@@ -506,21 +506,172 @@ Richness_{it} &amp;\sim \text{Negative Binomial}(\mu_{it}, \theta) \\
 \end{aligned}
 \]</span></p>
 <p>Here we are modeling species Richness for each stream (i) in year (t) using a negative binomial generalized linear model. The expected richness (mu) is linked to environmental predictors through a log link function. We included monthly precipitation (precip), regional average air temperature (temp), regional average river flow (flow), and average baseflow index (bfi) as predictors for species richness. The dispersion parameter (Theta) quantifies the variability in richness beyond what would be expected under a standard Poisson model.</p>
-<p>Here’s what that look like in R. We’ll be using the Negative Binomial GLM function <code>glm.np</code> from the <code>MASS</code> package.</p>
+<p>Before we specify our model, let’s take a look at it in action with simulated data.</p>
+</section>
+<section id="simulating-data---recovering-model-coefficients" class="level2">
+<h2 class="anchored" data-anchor-id="simulating-data---recovering-model-coefficients">Simulating Data - Recovering Model Coefficients</h2>
+<p>To aide in our understanding and assess the validity of the Negative Binomial model, we want to see if it can work with fake data. In this example, we will generate a synthetic dataset with known parameters, fit our Negative Binomial model to that data, and then compare the model’s estimated coefficients to the true values we used to create the data. If the model successfully recovers parameters close to our known true values, this validates that the Negative Binomial approach is working correctly and can reliably estimate relationships in count data.</p>
+<section id="generate-fake-observations" class="level5">
+<h5 class="anchored" data-anchor-id="generate-fake-observations"><strong>1) Generate fake observations</strong></h5>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>nb_mod <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> aug_richness</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>                 )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create fake predictor data</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>n_obs <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>fake_obs <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">f_mean_precip =</span> <span class="fu">runif</span>(n_obs, <span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="dv">200</span>),</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">f_air_aug =</span> <span class="fu">runif</span>(n_obs, <span class="at">min =</span> <span class="dv">10</span>, <span class="at">max =</span> <span class="dv">25</span>),</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">f_flow_aug =</span> <span class="fu">runif</span>(n_obs, <span class="at">min =</span> <span class="dv">50</span>, <span class="at">max =</span> <span class="dv">300</span>),</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">f_mean_bfi =</span> <span class="fu">runif</span>(n_obs, <span class="at">min =</span> <span class="fl">0.2</span>, <span class="at">max =</span> <span class="fl">0.8</span>)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="set-coefficient-values-that-well-try-to-recover-later" class="level5">
+<h5 class="anchored" data-anchor-id="set-coefficient-values-that-well-try-to-recover-later"><strong>2) Set coefficient values that we’ll try to recover later</strong></h5>
+<p>We’ll need an intercept (beta 0), a beta coefficient for each of our parameters values, and a dispersion parameter (theta).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set "true" coefficients</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>true_beta0 <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>true_beta_precip <span class="ot">&lt;-</span> <span class="fl">0.05</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>true_beta_air <span class="ot">&lt;-</span> <span class="sc">-</span> <span class="fl">0.5</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>true_beta_flow <span class="ot">&lt;-</span> <span class="fl">0.001</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>true_beta_bfi <span class="ot">&lt;-</span> <span class="fl">0.01</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>true_theta <span class="ot">&lt;-</span> <span class="fl">2.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="calculate-richness-values-using-our-true-coefficient-values" class="level5">
+<h5 class="anchored" data-anchor-id="calculate-richness-values-using-our-true-coefficient-values"><strong>3) Calculate richness values using our “true” coefficient values</strong></h5>
+<p>Here we’re generating data that follows the rules we set above with our coefficients.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get richness in link space</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>log_richness <span class="ot">&lt;-</span> true_beta0 <span class="sc">+</span> </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>          true_beta_precip <span class="sc">*</span> fake_obs<span class="sc">$</span>f_mean_precip <span class="sc">+</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>          true_beta_air <span class="sc">*</span> fake_obs<span class="sc">$</span>f_air_aug <span class="sc">+</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>          true_beta_flow <span class="sc">*</span> fake_obs<span class="sc">$</span>f_flow_aug <span class="sc">+</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>          true_beta_bfi <span class="sc">*</span> fake_obs<span class="sc">$</span>f_mean_bfi</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Take estimate out of link space to get actual richness values</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>richness <span class="ot">&lt;-</span> <span class="fu">exp</span>(log_richness)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="generate-fake-richness-data-using-negative-binomial-distribution-with-rnbinom" class="level5">
+<h5 class="anchored" data-anchor-id="generate-fake-richness-data-using-negative-binomial-distribution-with-rnbinom"><strong>4) Generate fake richness data using negative binomial distribution with <code>rnbinom</code></strong></h5>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>fake_obs<span class="sc">$</span>richness <span class="ot">&lt;-</span> <span class="fu">rnbinom</span>(<span class="at">n =</span> n_obs, <span class="at">mu =</span> richness, <span class="at">size =</span> true_theta)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="fit-model-to-fake-data" class="level5">
+<h5 class="anchored" data-anchor-id="fit-model-to-fake-data"><strong>5) Fit model to fake data</strong></h5>
+<p>We’ll be using the Negative Binomial GLM function <code>glm.nb</code> from the <code>MASS</code> package.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>sim_model <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> f_mean_precip <span class="sc">+</span> f_air_aug<span class="sc">+</span> f_flow_aug <span class="sc">+</span> f_mean_bfi,</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> fake_obs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="compare-estimated-coefficients-to-true-values" class="level5">
+<h5 class="anchored" data-anchor-id="compare-estimated-coefficients-to-true-values"><strong>6) Compare estimated coefficients to true values</strong></h5>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">Parameter =</span> <span class="fu">c</span>(<span class="st">"Intercept"</span>, <span class="st">"Precipitation"</span>, <span class="st">"Air Temp"</span>, <span class="st">"Flow"</span>, <span class="st">"BFI"</span>, <span class="st">"Theta"</span>),</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">True_Value =</span> <span class="fu">c</span>(true_beta0, true_beta_precip, true_beta_air, </span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>                 true_beta_flow, true_beta_bfi, true_theta),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimated_Value =</span> <span class="fu">c</span>(<span class="fu">coef</span>(sim_model), sim_model<span class="sc">$</span>theta)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Display table</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(comparison, <span class="at">digits =</span> <span class="dv">4</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"Comparison of True vs Estimated Parameters"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small">
+<caption>Comparison of True vs Estimated Parameters</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Parameter</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">True_Value</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Estimated_Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: left;">Intercept</td>
+<td style="text-align: right;">2.000</td>
+<td style="text-align: right;">2.0040</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">f_mean_precip</td>
+<td style="text-align: left;">Precipitation</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.0506</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">f_air_aug</td>
+<td style="text-align: left;">Air Temp</td>
+<td style="text-align: right;">-0.500</td>
+<td style="text-align: right;">-0.5071</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">f_flow_aug</td>
+<td style="text-align: left;">Flow</td>
+<td style="text-align: right;">0.001</td>
+<td style="text-align: right;">0.0010</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">f_mean_bfi</td>
+<td style="text-align: left;">BFI</td>
+<td style="text-align: right;">0.010</td>
+<td style="text-align: right;">0.1625</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Theta</td>
+<td style="text-align: right;">2.500</td>
+<td style="text-align: right;">3.1778</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The model successfully recovers parameters close to our true values, demonstrating that the Negative Binomial model works as expected. Now let’s apply this same approach to our real data.</p>
+</section>
+</section>
+<section id="negative-binomial-with-actual-data" class="level2">
+<h2 class="anchored" data-anchor-id="negative-binomial-with-actual-data">Negative Binomial with Actual Data</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>nb_mod <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> aug_richness</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>                 )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <p>Now, let’s take a look at our model coefficients</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(nb_mod) <span class="sc">%&gt;%</span> </span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">4</span>, <span class="at">caption =</span> <span class="st">"Negative Binomial Model Summary"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(nb_mod) <span class="sc">%&gt;%</span> </span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">4</span>, <span class="at">caption =</span> <span class="st">"Negative Binomial Model Summary"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
@@ -575,8 +726,8 @@ Richness_{it} &amp;\sim \text{Negative Binomial}(\mu_{it}, \theta) \\
 </div>
 </div>
 </section>
-<section id="interpretation-of-coefficients" class="level2">
-<h2 class="anchored" data-anchor-id="interpretation-of-coefficients">Interpretation of Coefficients</h2>
+<section id="interpretation-of-coefficients-and-hypothesis-testing" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-of-coefficients-and-hypothesis-testing">Interpretation of Coefficients and Hypothesis Testing</h2>
 <p>In order to interpret our coefficients, we’ll have to take them out of log space by calculating the percentage change as <span class="math inline">\(100 \times (e^{\beta} - 1)\)</span> for positive effects or <span class="math inline">\(100 \times (1 - e^{\beta})\)</span> for negative effects. I’ll draw your attention to the mean precipitation, Theta, and Significance rows. These coefficients are what we’re most interested in for determining if our model is appropriate, and showing a relationship between our key variables - richness and precipitation.</p>
 <ul>
 <li><ul>
@@ -595,220 +746,52 @@ Richness_{it} &amp;\sim \text{Negative Binomial}(\mu_{it}, \theta) \\
 <p>According to our results, increases in precipitation are associated with a decrease in species presence, warmer temperatures are associated with higher richness, and higher baseflow index (less stream seasonal variability) is associated with lower richness. Our Theta also indicates that the Negative Binomial model was the right choice. It looks like all of our results are statistically significant as well. This means something very important about our hypothesis from earlier. Because precipitation has a measurable effect on species richness, and our p-value for our precipitation coefficient is lower that our significance threshold of 0.05, we can <strong>reject our null hypothesis</strong> that precipitation has no effect on species richness.</p>
 <p>Now, we want to see how our model performs with simulated data. Let’s see if we can recreate our results with simulated data. Once we have a viable method for simulating our data, we can bootstrap, and find out our degree of confidence in our results.</p>
 </section>
-<section id="simulating-data" class="level2">
-<h2 class="anchored" data-anchor-id="simulating-data">Simulating Data</h2>
-<section id="extract-our-coefficients" class="level5">
-<h5 class="anchored" data-anchor-id="extract-our-coefficients"><strong>1) Extract our coefficients</strong></h5>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coefficients (log-scale)</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>coefs <span class="ot">&lt;-</span> <span class="fu">coef</span>(nb_mod)</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Theta (dispersion parameter)</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>theta <span class="ot">&lt;-</span> nb_mod<span class="sc">$</span>theta</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
-<section id="create-our-new-data-using-values-from-our-actual-data" class="level5">
-<h5 class="anchored" data-anchor-id="create-our-new-data-using-values-from-our-actual-data"><strong>2) Create our new data using values from our actual data</strong></h5>
-<p>In order to produce simulations we’ll need a new dataset. We’ll build this new dataset based on the range and distribution of our actual data.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create new data grid with simulated values</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>new_data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="at">mean_precip =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>mean_precip), <span class="fu">max</span>(aug_richness<span class="sc">$</span>mean_precip),</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>             <span class="at">length.out =</span> <span class="dv">100</span>), <span class="co"># Get 100 different values for precip</span></span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="at">air_aug =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>air_aug), <span class="fu">max</span>(aug_richness<span class="sc">$</span>air_aug),</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">length.out=</span> <span class="dv">10</span>),  <span class="co"># 10 different values for air temp</span></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="at">flow_aug =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>flow_aug), <span class="fu">max</span>(aug_richness<span class="sc">$</span>flow_aug),</span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>              <span class="at">length.out =</span> <span class="dv">10</span>), <span class="co"># 10 different values for flow</span></span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="at">mean_bfi =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>mean_bfi), <span class="fu">max</span>(aug_richness<span class="sc">$</span>mean_bfi),</span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>               <span class="at">length.out =</span> <span class="dv">5</span>) <span class="co"># 5 different values for BFI</span></span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
-<section id="compute-expected-values-for-richness-using-our-model-and-our-simulated-data" class="level5">
-<h5 class="anchored" data-anchor-id="compute-expected-values-for-richness-using-our-model-and-our-simulated-data"><strong>3) Compute expected values for richness using our model and our simulated data</strong></h5>
-<p>These predictions will be in link space.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>log_richness_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(nb_mod, <span class="at">newdata =</span> new_data, <span class="at">type =</span> <span class="st">"link"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
-<section id="take-expected-richness-values-out-of-link-space." class="level5">
-<h5 class="anchored" data-anchor-id="take-expected-richness-values-out-of-link-space."><strong>4) Take expected richness values out of link space.</strong></h5>
-<p>This gives us meaningful richness values that we can use in our simulations. Let’s take a look at our values in link space (top) and our actual estimates (bottom).</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>richness_pred <span class="ot">&lt;-</span> <span class="fu">exp</span>(log_richness_pred)</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(log_richness_pred)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>       1        2        3        4        5        6 
-1.958182 1.935034 1.911885 1.888736 1.865587 1.842438 </code></pre>
-</div>
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(richness_pred)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>       1        2        3        4        5        6 
-7.086436 6.924277 6.765828 6.611006 6.459726 6.311908 </code></pre>
-</div>
-</div>
-</section>
-<section id="simulate-random-richness-values-based-on-our-expected-values-and-our-model-dispersion-theta" class="level5">
-<h5 class="anchored" data-anchor-id="simulate-random-richness-values-based-on-our-expected-values-and-our-model-dispersion-theta"><strong>5) Simulate random richness values based on our expected values and our model dispersion (theta)</strong></h5>
-<p>The values generated in our last step are expected values based on the parameters we provided, but rnbinom() creates random draws from that distribution, allowing our simulation to closer resemble reality.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>sim_richness <span class="ot">&lt;-</span> <span class="fu">rnbinom</span>(</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">n  =</span> <span class="fu">length</span>(richness_pred), <span class="co"># number of observations</span></span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu =</span> richness_pred,  <span class="co"># expected richness from model</span></span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">size =</span> theta  <span class="co"># dispersion parameter from fitted model</span></span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Add to our new_data dataframe</span></span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>new_data<span class="sc">$</span>sim_richness <span class="ot">&lt;-</span> sim_richness</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
-<section id="fit-negative-binomial-model-to-simulated-data" class="level5">
-<h5 class="anchored" data-anchor-id="fit-negative-binomial-model-to-simulated-data"><strong>6) Fit Negative Binomial model to simulated data</strong></h5>
-<p>Now we fit our negative binomial model from above, but this time using our simulated data. If we did everything correctly, our resulting coefficients should be very similar to the coefficients of our original data.</p>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>nb_model_sim <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  sim_richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> new_data</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-</div>
-</section>
-<section id="check-model-summary-and-compare-coefficients" class="level5">
-<h5 class="anchored" data-anchor-id="check-model-summary-and-compare-coefficients"><strong>7) Check model summary and compare Coefficients</strong></h5>
-<div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>model_orig <span class="ot">&lt;-</span> <span class="fu">tidy</span>(nb_mod) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Original"</span>)</span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>model_sim <span class="ot">&lt;-</span> <span class="fu">tidy</span>(nb_model_sim) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">model =</span> <span class="st">"Simulated"</span>)</span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>comparison_table <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(model_orig, model_sim)</span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>comparison_table <span class="sc">%&gt;%</span> </span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(term, estimate, model) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> model, </span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>              <span class="at">values_from =</span> <span class="fu">c</span>(estimate)) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">4</span>,</span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>        <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Term"</span>, <span class="st">"Original Estimate"</span>, <span class="st">"Simulated Estimate"</span>),</span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="at">caption =</span> <span class="st">"Model Comparison: Original vs Simulated Data"</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
-<div class="cell-output-display">
-<table class="table table-striped table-hover caption-top table-sm small">
-<caption>Model Comparison: Original vs Simulated Data</caption>
-<thead>
-<tr class="header">
-<th style="text-align: left;" data-quarto-table-cell-role="th">Term</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">Original Estimate</th>
-<th style="text-align: right;" data-quarto-table-cell-role="th">Simulated Estimate</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">(Intercept)</td>
-<td style="text-align: right;">1.6960</td>
-<td style="text-align: right;">1.6740</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">mean_precip</td>
-<td style="text-align: right;">-0.0010</td>
-<td style="text-align: right;">-0.0010</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">air_aug</td>
-<td style="text-align: right;">0.0425</td>
-<td style="text-align: right;">0.0438</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">flow_aug</td>
-<td style="text-align: right;">0.0049</td>
-<td style="text-align: right;">0.0043</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">mean_bfi</td>
-<td style="text-align: right;">-0.0115</td>
-<td style="text-align: right;">-0.0113</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>Our coefficients are very similar, which shouldn’t be very surprising because we built our simulation on the results from our original model. But it does introduce a degree of randomness which allows us assess the accuracy of our model. Now, we can use simulated data and bootstrapping to generate confidence intervals for our results. We’ll run our simulation 500 times</p>
-</section>
-</section>
 <section id="building-confidence-intervals" class="level2">
-<h2 class="anchored" data-anchor-id="building-confidence-intervals"><strong>Building Confidence Intervals</strong></h2>
+<h2 class="anchored" data-anchor-id="building-confidence-intervals">Building Confidence Intervals</h2>
+<p>In this final step, we want to take a look at the likelihood that our model is accurately capturing the relationship between precipitation and richness that is present in our data. In order to do that, we’ll produce 500 sets of simulated data, based on our actual data, and see how often we get similar results. To make sure we’re capturing the desired relationship, we’ll have controls for non-precipitation variables.</p>
 <section id="variable-filtering" class="level5">
 <h5 class="anchored" data-anchor-id="variable-filtering"><strong>1) Variable filtering</strong></h5>
-<p>First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I’ll hold the other values constant by using their median value, indexed from my lists provided in <code>new_data</code></p>
+<p>First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I’ll hold the other values constant by using their median value.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>precip_only_data <span class="ot">&lt;-</span> new_data <span class="sc">%&gt;%</span></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    air_aug <span class="sc">==</span> <span class="fu">sort</span>(<span class="fu">unique</span>(air_aug))[<span class="dv">5</span>],      <span class="co"># 5th of 10 values (middle)</span></span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    flow_aug <span class="sc">==</span> <span class="fu">sort</span>(<span class="fu">unique</span>(flow_aug))[<span class="dv">5</span>],    <span class="co"># 5th of 10 values (middle)</span></span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    mean_bfi <span class="sc">==</span> <span class="fu">sort</span>(<span class="fu">unique</span>(mean_bfi))[<span class="dv">3</span>]     <span class="co"># 3rd of 5 values (middle)</span></span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>precip_only_data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mean_precip =</span> <span class="fu">seq</span>(<span class="fu">min</span>(aug_richness<span class="sc">$</span>mean_precip), </span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>                    <span class="fu">max</span>(aug_richness<span class="sc">$</span>mean_precip), </span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>                    <span class="at">length.out =</span> <span class="dv">100</span>),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">air_aug =</span> <span class="fu">median</span>(aug_richness<span class="sc">$</span>air_aug),</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">flow_aug =</span> <span class="fu">median</span>(aug_richness<span class="sc">$</span>flow_aug),</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">mean_bfi =</span> <span class="fu">median</span>(aug_richness<span class="sc">$</span>mean_bfi)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
 <section id="bootstrapping" class="level5">
 <h5 class="anchored" data-anchor-id="bootstrapping"><strong>2) Bootstrapping</strong></h5>
-<p>Bootstrapping is a resampling technique that allows us to estimate the uncertainty in our model predictions by repeatedly sampling from our data with replacement. In this context, we’ll simulate 500 new datasets based on our model parameters, fit the negative binomial model to each simulated dataset, and generate predictions for richness. This process creates a distribution of predicted richneses values for each precipitation level, which we can use to calculate confidence intervals. Confidence intervals will tell us about the likelihood that we’re capturing the actual relationship between precipitation and richness from our data with our model.</p>
+<p>Bootstrapping is a resampling technique that allows us to estimate the uncertainty in our model predictions by repeatedly sampling from our actual data with replacement. In this context, we’ll simulate 500 new datasets based on our actual data, fit the negative binomial model to each simulated dataset, and generate predictions for richness. This process creates a distribution of predicted richness values for each precipitation level, which we can use to calculate confidence intervals. Confidence intervals will tell us about the likelihood that we’re capturing the actual relationship between precipitation and richness from our data with our model.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Define number of simulations</span></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>n_sims <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a matrix to populate with boothstrap data, same rows as our precip_only_data  and one column for each simulation</span></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>pred_matrix_boot <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA</span>, <span class="at">nrow =</span> <span class="fu">nrow</span>(precip_only_data), <span class="at">ncol =</span> n_sims)</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap for each simulation</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n_sims){</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Bootstrap: resample original data</span></span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  boot_indices <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(aug_richness), <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>  boot_data <span class="ot">&lt;-</span> aug_richness[boot_indices, ]</span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fit model to bootstrap sample</span></span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>  boot_mod <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
-<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> boot_data)</span>
-<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Predict on precip_only_data </span></span>
-<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>  pred_matrix_boot[,i] <span class="ot">&lt;-</span> <span class="fu">predict</span>(boot_mod, <span class="at">newdata =</span> precip_only_data, <span class="at">type =</span> <span class="st">"response"</span>)</span>
-<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Define number of simulations</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>n_sims <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a matrix to populate with bootstrap data, same rows as our precip_only_data  and one column for each simulation</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>pred_matrix_boot <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA</span>, <span class="at">nrow =</span> <span class="fu">nrow</span>(precip_only_data), <span class="at">ncol =</span> n_sims)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap for each simulation</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n_sims){</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Bootstrap: resample original data</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  boot_indices <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(aug_richness), <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>  boot_data <span class="ot">&lt;-</span> aug_richness[boot_indices, ]</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fit model to bootstrap sample</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>  boot_mod <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(richness <span class="sc">~</span> mean_precip <span class="sc">+</span> air_aug <span class="sc">+</span> flow_aug <span class="sc">+</span> mean_bfi,</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> boot_data)</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Predict on precip_only_data </span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>  pred_matrix_boot[,i] <span class="ot">&lt;-</span> <span class="fu">predict</span>(boot_mod, <span class="at">newdata =</span> precip_only_data, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -818,52 +801,52 @@ Richness_{it} &amp;\sim \text{Negative Binomial}(\mu_{it}, \theta) \\
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># THIRD: Calculate confidence intervals</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(pred_matrix_boot)</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>pred_lower <span class="ot">&lt;-</span> <span class="fu">apply</span>(pred_matrix_boot, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.025</span>)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>pred_upper <span class="ot">&lt;-</span> <span class="fu">apply</span>(pred_matrix_boot, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.975</span>)</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Add to precip_only_data</span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>precip_only_data <span class="ot">&lt;-</span> precip_only_data <span class="sc">%&gt;%</span></span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_mean  =</span> pred_mean,</span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_lower =</span> pred_lower,</span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_upper =</span> pred_upper</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate confidence intervals</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(pred_matrix_boot)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>pred_lower <span class="ot">&lt;-</span> <span class="fu">apply</span>(pred_matrix_boot, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.025</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>pred_upper <span class="ot">&lt;-</span> <span class="fu">apply</span>(pred_matrix_boot, <span class="dv">1</span>, quantile, <span class="at">probs =</span> <span class="fl">0.975</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Add to precip_only_data</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>precip_only_data <span class="ot">&lt;-</span> precip_only_data <span class="sc">%&gt;%</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_mean  =</span> pred_mean,</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_lower =</span> pred_lower,</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">pred_upper =</span> pred_upper</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <p>Now that we have our predictions for precipitation based on simulations, while holding all other variables constant, we can plot our data with confidence intervals</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(precip_only_data, <span class="fu">aes</span>(<span class="at">x =</span> mean_precip, <span class="at">y =</span> pred_mean)) <span class="sc">+</span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> pred_lower, <span class="at">ymax =</span> pred_upper), </span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"darkblue"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Mean Precipitation (mm)"</span>, </span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Predicted Species Richness (count)"</span>,</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Effect of Precipitation on Fish Species Richness"</span>,</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Other variables held at middle values (95% CI from 500 bootstrap samples)"</span></span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">14</span>),</span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>, <span class="at">color =</span> <span class="st">"gray40"</span>),</span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>)</span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(precip_only_data, <span class="fu">aes</span>(<span class="at">x =</span> mean_precip, <span class="at">y =</span> pred_mean)) <span class="sc">+</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> pred_lower, <span class="at">ymax =</span> pred_upper), <span class="co"># Confidence intervals</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">fill =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"darkblue"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span> <span class="co"># </span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Mean Precipitation (mm)"</span>, </span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Predicted Species Richness (count)"</span>,</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Effect of Precipitation on Fish Species Richness"</span>,</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Other variables held at median values (95% CI from 500 bootstrap samples)"</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>, <span class="at">size =</span> <span class="dv">14</span>),</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>, <span class="at">color =</span> <span class="st">"gray40"</span>),</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>)</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="blogpost_draft_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="blogpost_draft_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>–</p>
 <p><strong>Interpretation: What do the confidence intervals tell us?</strong></p>
-<p>Based on 500 bootstrap samples of the data, we’re 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It’s important to make understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams.</p>
+<p>Based on 500 bootstrap samples of the data, we’re 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded red region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It’s important to understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams. Based on the figure,it look like our model has high confidence of capturing the relationship between richness and precipitation present in our data. The model is likely most accurate to the true relationship between precipitation and richness in the 750-1000mm precipitation range, and least accurate in the 0-500 range. This is likely because there is more data in the former range, and higher variation of richness in the 0-500 range.</p>
 </section>
 </section>
 <section id="conclusions" class="level2">

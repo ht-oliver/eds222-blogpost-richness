@@ -233,7 +233,90 @@ $$
 
 Here we are modeling species Richness for each stream (i) in year (t) using a negative binomial generalized linear model. The expected richness (mu) is linked to environmental predictors through a log link function. We included monthly precipitation (precip), regional average air temperature (temp), regional average river flow (flow), and average baseflow index (bfi) as predictors for species richness. The dispersion parameter (Theta) quantifies the variability in richness beyond what would be expected under a standard Poisson model.
 
-Here's what that look like in R. We'll be using the Negative Binomial GLM function `glm.np` from the `MASS` package.
+Before we specify our model, let's take a look at it in action with simulated data.
+
+## Simulating Data - Recovering Model Coefficients
+
+To aide in our understanding and assess the validity of the Negative Binomial model, we want to see if it can work with fake data. In this example, we will generate a synthetic dataset with known parameters, fit our Negative Binomial model to that data, and then compare the model's estimated coefficients to the true values we used to create the data. If the model successfully recovers parameters close to our known true values, this validates that the Negative Binomial approach is working correctly and can reliably estimate relationships in count data.
+
+##### **1) Generate fake observations**
+```{r}
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Create fake predictor data
+n_obs <- 1000
+fake_obs <- data.frame(
+  f_mean_precip = runif(n_obs, min = 0, max = 200),
+  f_air_aug = runif(n_obs, min = 10, max = 25),
+  f_flow_aug = runif(n_obs, min = 50, max = 300),
+  f_mean_bfi = runif(n_obs, min = 0.2, max = 0.8)
+)
+
+```
+
+
+##### **2) Set coefficient values that we'll try to recover later**
+We'll need an intercept (beta 0), a beta coefficient for each of our parameters values, and a dispersion parameter (theta).
+```{r}
+# Set "true" coefficients
+true_beta0 <- 2
+true_beta_precip <- 0.05
+true_beta_air <- - 0.5
+true_beta_flow <- 0.001
+true_beta_bfi <- 0.01
+true_theta <- 2.5
+```
+
+##### **3) Calculate richness values using our "true" coefficient values**
+Here we're generating data that follows the rules we set above with our coefficients.
+```{r}
+# Get richness in link space
+log_richness <- true_beta0 + 
+          true_beta_precip * fake_obs$f_mean_precip +
+          true_beta_air * fake_obs$f_air_aug +
+          true_beta_flow * fake_obs$f_flow_aug +
+          true_beta_bfi * fake_obs$f_mean_bfi
+
+# Take estimate out of link space to get actual richness values
+richness <- exp(log_richness)
+
+```
+
+##### **4) Generate fake richness data using negative binomial distribution with `rnbinom`**
+```{r}
+fake_obs$richness <- rnbinom(n = n_obs, mu = richness, size = true_theta)
+```
+
+##### **5) Fit model to fake data**
+We'll be using the Negative Binomial GLM function `glm.nb` from the `MASS` package.
+
+```{r}
+sim_model <- glm.nb(richness ~ f_mean_precip + f_air_aug+ f_flow_aug + f_mean_bfi,
+                    data = fake_obs)
+```
+
+##### **6) Compare estimated coefficients to true values**
+```{r}
+
+comparison <- data.frame(
+  Parameter = c("Intercept", "Precipitation", "Air Temp", "Flow", "BFI", "Theta"),
+  True_Value = c(true_beta0, true_beta_precip, true_beta_air, 
+                 true_beta_flow, true_beta_bfi, true_theta),
+  Estimated_Value = c(coef(sim_model), sim_model$theta)
+)
+
+# Display table
+kable(comparison, digits = 4,
+      caption = "Comparison of True vs Estimated Parameters") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+```
+
+The model successfully recovers parameters close to our true values, demonstrating that the Negative Binomial model works as expected. Now let's apply this same approach to our real data.
+
+## Negative Binomial with Actual Data
 
 ```{r}
 nb_mod <- glm.nb(richness ~ mean_precip + air_aug + flow_aug + mean_bfi,
@@ -269,137 +352,34 @@ According to our results, increases in precipitation are associated with a decre
 
 Now, we want to see how our model performs with simulated data. Let's see if we can recreate our results with simulated data. Once we have a viable method for simulating our data, we can bootstrap, and find out our degree of confidence in our results.
 
-## Simulating Data 
-
-##### **1) Extract our coefficients**
-
-```{r}
-# Coefficients (log-scale)
-coefs <- coef(nb_mod)
-# Theta (dispersion parameter)
-theta <- nb_mod$theta
-```
-
-##### **2) Create our new data using values from our actual data**
-
-In order to produce simulations we'll need a new dataset. We'll build this new dataset based on the range and distribution of our actual data.
-
-```{r}
-# Set seed for reproducibility
-set.seed(123)
-
-# Create new data grid with simulated values
-new_data <- expand.grid(
-mean_precip = seq(min(aug_richness$mean_precip), max(aug_richness$mean_precip),
-             length.out = 100), # Get 100 different values for precip
-  
-air_aug = seq(min(aug_richness$air_aug), max(aug_richness$air_aug),
-              length.out= 10),  # 10 different values for air temp
-  
-flow_aug = seq(min(aug_richness$flow_aug), max(aug_richness$flow_aug),
-              length.out = 10), # 10 different values for flow
-
-mean_bfi = seq(min(aug_richness$mean_bfi), max(aug_richness$mean_bfi),
-               length.out = 5) # 5 different values for BFI
-)
-```
-
-##### **3) Compute expected values for richness using our model and our simulated data** 
-These predictions will be in link space.
-
-```{r}
-log_richness_pred <- predict(nb_mod, newdata = new_data, type = "link")
-```
-
-##### **4) Take expected richness values out of link space.**
-This gives us meaningful richness values that we can use in our simulations. Let's take a look at our values in link space (top) and our actual estimates (bottom).
-
-```{r}
-richness_pred <- exp(log_richness_pred)
-head(log_richness_pred)
-head(richness_pred)
-
-```
-
-##### **5) Simulate random richness values based on our expected values and our model dispersion (theta)**
-The values generated in our last step are expected values based on the parameters we provided, but `rnbinom()` creates random draws from that distribution, allowing our simulation to closer resemble reality.
-
-```{r}
-# Set seed for reproducibility
-set.seed(123)
-
-sim_richness <- rnbinom(
-  n  = length(richness_pred), # number of observations
-  mu = richness_pred,  # expected richness from model
-  size = theta  # dispersion parameter from fitted model
-)
-
-# Add to our new_data dataframe
-new_data$sim_richness <- sim_richness
-
-
-```
-
-##### **6) Fit Negative Binomial model to simulated data**
-Now we fit our negative binomial model from above, but this time using our simulated data. If we did everything correctly, our resulting coefficients should be very similar to the coefficients of our original data.
-
-```{r}
-nb_model_sim <- glm.nb(
-  sim_richness ~ mean_precip + air_aug + flow_aug + mean_bfi,
-  data = new_data
-)
-```
-
-##### **7) Check model summary and compare Coefficients**
-
-```{r}
-
-model_orig <- tidy(nb_mod) %>% 
-  mutate(model = "Original")
-
-model_sim <- tidy(nb_model_sim) %>% 
-  mutate(model = "Simulated")
-
-comparison_table <- bind_rows(model_orig, model_sim)
-
-comparison_table %>% 
-  dplyr::select(term, estimate, model) %>% 
-  pivot_wider(names_from = model, 
-              values_from = c(estimate)) %>% 
-  kable(digits = 4,
-        col.names = c("Term", "Original Estimate", "Simulated Estimate"),
-        caption = "Model Comparison: Original vs Simulated Data") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover"))
-
-
-```
-
-Our coefficients are very similar, which shouldn't be very surprising because we built our simulation on the results from our original model. But it does introduce a degree of randomness which allows us assess the accuracy of our model. Now, we can use simulated data and bootstrapping to generate confidence intervals for our results.  We'll run our simulation 500 times
-
 ## Building Confidence Intervals
 
+In this final step, we want to take a look at the likelihood that our model is accurately capturing the relationship between precipitation and richness that is present in our data. In order to do that, we'll produce 500 sets of simulated data, based on our actual data, and see how often we get similar results. To make sure we're capturing the desired relationship, we'll have controls for non-precipitation variables.
+
 ##### **1) Variable filtering**
-First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I'll hold the other values constant by using their median value, indexed from my lists provided in `new_data`
+First, I want to filter to only my precipitation data so I can isolate the relationship between precipitations an richness. I'll hold the other values constant by using their median value.
 
 ```{r}
-precip_only_data <- new_data %>%
-  filter(
-    air_aug == sort(unique(air_aug))[5],      # 5th of 10 values (middle)
-    flow_aug == sort(unique(flow_aug))[5],    # 5th of 10 values (middle)
-    mean_bfi == sort(unique(mean_bfi))[3]     # 3rd of 5 values (middle)
-  )
+precip_only_data <- data.frame(
+  mean_precip = seq(min(aug_richness$mean_precip), 
+                    max(aug_richness$mean_precip), 
+                    length.out = 100),
+  air_aug = median(aug_richness$air_aug),
+  flow_aug = median(aug_richness$flow_aug),
+  mean_bfi = median(aug_richness$mean_bfi)
+)
 ```
 
 ##### **2) Bootstrapping**
 
-Bootstrapping is a resampling technique that allows us to estimate the uncertainty in our model predictions by repeatedly sampling from our data with replacement. In this context, we'll simulate 500 new datasets based on our model parameters, fit the negative binomial model to each simulated dataset, and generate predictions for richness. This process creates a distribution of predicted richneses values for each precipitation level, which we can use to calculate confidence intervals. Confidence intervals will tell us about the likelihood that we're capturing the actual relationship between precipitation and richness from our data with our model.
+Bootstrapping is a resampling technique that allows us to estimate the uncertainty in our model predictions by repeatedly sampling from our actual data with replacement. In this context, we'll simulate 500 new datasets based on our actual data, fit the negative binomial model to each simulated dataset, and generate predictions for richness. This process creates a distribution of predicted richness values for each precipitation level, which we can use to calculate confidence intervals. Confidence intervals will tell us about the likelihood that we're capturing the actual relationship between precipitation and richness from our data with our model.
 
 ```{r}
 set.seed(123)
 # Define number of simulations
 n_sims <- 500
 
-# Create a matrix to populate with boothstrap data, same rows as our precip_only_data  and one column for each simulation
+# Create a matrix to populate with bootstrap data, same rows as our precip_only_data  and one column for each simulation
 pred_matrix_boot <- matrix(NA, nrow = nrow(precip_only_data), ncol = n_sims)
 
 # Bootstrap for each simulation
@@ -439,13 +419,13 @@ Now that we have our predictions for precipitation based on simulations, while h
 ```{r}
 ggplot(precip_only_data, aes(x = mean_precip, y = pred_mean)) +
   geom_ribbon(aes(ymin = pred_lower, ymax = pred_upper), # Confidence intervals
-              alpha = 0.3, fill = "steelblue") +
+              alpha = 0.3, fill = "red") +
   geom_line(color = "darkblue", linewidth = 1) + # 
   labs(
     x = "Mean Precipitation (mm)", 
     y = "Predicted Species Richness (count)",
     title = "Effect of Precipitation on Fish Species Richness",
-    subtitle = "Other variables held at middle values (95% CI from 500 bootstrap samples)"
+    subtitle = "Other variables held at median values (95% CI from 500 bootstrap samples)"
   ) +
   theme_minimal() +
   theme(
@@ -459,7 +439,7 @@ ggplot(precip_only_data, aes(x = mean_precip, y = pred_mean)) +
 
 **Interpretation: What do the confidence intervals tell us?**
 
-Based on 500 bootstrap samples of the data, we're 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It's important to make understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams.
+Based on 500 bootstrap samples of the data, we're 95% confident that the true relationship between precipitation and fish species richness falls somewhere within the shaded red region. The line shows our best estimate, and the ribbon shows how uncertain we are about that estimate. It's important to understand that this is not a direct representation of how accurate precipitation is in predicting fish richness. Rather, This interval represents parameter uncertainty - how confident we are about the relationship between precipitation and richness - rather than prediction uncertainty for individual streams. Based on the figure,it look like our model has high confidence of capturing the relationship between richness and precipitation present in our data. The model is likely most accurate to the true relationship between precipitation and richness in the 750-1000mm precipitation range, and least accurate in the 0-500 range. This is likely because there is more data in the former range, and higher variation of richness in the 0-500 range. 
 
 
 ## Conclusions
