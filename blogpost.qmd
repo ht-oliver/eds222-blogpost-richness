@@ -73,6 +73,8 @@ I'll be modeling the relationship between precipitation and fish species richnes
 
 ## Variables and DAG
 
+The following variables are used in this statistical analyses. The DAG below indicates the predicted relationship between variables.
+
 **Precipitation**: Mm precipitation recorded during the month of observation
 
 **Base Flow Index (BFI)**: Expression of groundwater vs. surface water flow in for each water body.

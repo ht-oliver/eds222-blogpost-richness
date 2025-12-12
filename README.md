@@ -1,4 +1,7 @@
 # "Modeling Precipitation as a Predictor for Fish Species Richness In US Northwest"
+##### Author: Henry Oliver, UCSB Bren School of Environmental Science and Management.
+##### Date Published: December 11, 2025
+
 
 # Purpose
 This repository houses the contents of the final blog post related to EDS 222 Final Project. This analysis seeks to identify a relationship between precipitation and fish species richness in US Northwest streams and rivers.
@@ -9,7 +12,7 @@ Freshwater fish presence and species richness is a vital metric for stream healt
 # Contents
 ```
 ├── blogpost.qmd # Rendering this document produces analysis
-├── data # This folder is not present in repo. See data access for details
+├── data
 │   └── StreamSpeciesDataset_v1_1_3_edited.csv
 ├── eds222-blogpost-richness.Rproj
 ├── images
@@ -20,7 +23,10 @@ Freshwater fish presence and species richness is a vital metric for stream healt
 └── README.md
 ```
 
-# Data access
+# Data Access
+The data used in the this analysis is the The University of Wyoming Stream Species Dataset[1]. This multi-generational composition is a species presence dataset containing presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states dating back to the year 1900. It contains data from 40,490 unique sample events (location, month, year), and was compiled by combining data from agency databases, the Global Biodiversity Information Facility, university theses, peer-reviewed literature, grey-literature reports, and unpublished data from the University of Wyoming. Please note that absence (0) values only indicate that a species was not recorded by observers and should not be used as true absences in analyses. Data is present in the `data` folder in the repository.
 
-The data used in the this analysis is the The University of Wyoming Stream Species Dataset[1]. This multi-generational composition is a species presence dataset containing presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states dating back to the year 1900. It contains data from 40,490 unique sample events (location, month, year), and was compiled by combining data from agency databases, the Global Biodiversity Information Facility, university theses, peer-reviewed literature, grey-literature reports, and unpublished data from the University of Wyoming. Please note that absence (0) values only indicate that a species was not recorded by observers and should not be used as true absences in analyses. The data should be downloaded from this url (https://catalog.data.gov/dataset/dataset-of-species-presence-locations-for-116-freshwater-fish-species-in-wyoming-mont-1800)
+# References
+
+[1]Clancy, N. (2024). Dataset of species presence locations for 116 freshwater fish species in Wyoming, Montana, and the surrounding states from 1800–2022 (U.S. Geological Survey data release). U.S. Geological Survey. https://doi.org/10.5066/P13OGUSE
 
